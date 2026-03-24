@@ -1,0 +1,55 @@
+gerenciamento-os
+
+
+Fase 1: Planeamento e Mapeamento (Onde estamos agora)
+1. Entender o Fluxo (OS -> Banco de Dados)
+O que vamos fazer:  Mapear o ciclo de vida da OS. Precisamos definir quais gatilhos do Field Control importam para si. Exemplo: A OS foi "Agendada"? Vai para o banco. O técnico alterou para "Em Deslocamento"? O banco atualiza. Foi "Finalizada"? O banco sela a informação e começa a contar o prazo de 30 dias.
+Regra de Ouro: Definir o que é Imutável (ex: ID da OS, Data de Criação) e o que é Mutável (ex: Status, Placa que o técnico pode ter digitado errado e corrigido depois).
+
+2. Estudar e Padronizar o "Espelhamento" no Field Control
+O que vamos fazer: Vamos dissecar o preenchimento do lado do técnico. Pelo CSV que me enviou antes, sabemos que existe o formulário "ESPELHAMENTO". Precisamos garantir que campos como "QUAL RASTREADOR" (OMNILINK, SASCAR) e a "PLACA" sejam de preenchimento obrigatório e padronizado no Field Control. Se o técnico escrever "SASCAR" num dia e "SASKAR" no outro, o banco de dados vai ficar confuso.
+
+3. Definir as Colunas Reais do Banco de Dados
+O que vamos fazer: Criar o dicionário de dados. Não vamos puxar "lixo" ou dados que a Navortech não usa. Focaremos no que gera valor para a gestão da Transposeg.
+Exemplo de foco: ID_OS, Placa, Cliente, Data de Finalização, Gerenciadora do Espelhamento, e a nossa coluna mágica "Status_SLA_30_Dias".
+
+
+
+Fase 2: Conexão e Engenharia
+4. Solicitar Acesso à API para a Gestão
+O que você vai pedir: Quando for falar com a sua gestora, você precisa solicitar especificamente duas coisas no painel do Field Control:
+Chave de API (API Key / Token): A senha que permite o seu sistema consultar dados antigos.
+Permissão para criar Webhooks: O recurso que permite o Field Control "avisar" o seu banco de dados em tempo real quando algo acontecer.
+
+5. Entender a API e Definir o "Motor" (A Ponte)
+O que vamos fazer: Com a chave na mão, vamos ler a documentação do Field Control. Aqui decidiremos qual será a ferramenta que vai receber o Webhook e rodar o script SQL (INSERT e UPDATE). Podemos usar ferramentas visuais (Make.com, n8n) ou escrever um pequeno código em Python ou Node.js dentro do seu repositório no GitHub para fazer essa ponte.
+
+
+
+Fase 3: Homologação e Entrega
+6. Testar (Ambiente Controlado)
+O que vamos fazer: Criaremos uma OS fantasma no Field Control (Ex: Cliente "Teste Navortech", Placa "XXX-0000"). Vamos movê-la de status no aplicativo e observar o seu SQL Server piscar e atualizar as linhas sozinho. Se der erro, ajustamos o código.
+
+7. Validar (Carga de Dados Reais)
+O que vamos fazer: Uma vez que a automação está a funcionar para as OSs novas, faremos um script para ler aqueles CSVs antigos que você tem e injetá-los no SQL Server. Assim, o banco não começa vazio, ele já nasce com o histórico das atividades passadas para a sua gerente já ter dados para analisar.
+
+8. Organizar e Apresentar a Inovação
+O que vamos fazer: Dados crus num banco SQL não impressionam diretores. O passo final será conectar esse banco de dados a uma ferramenta de Dashboard (Power BI, Google Looker Studio, ou até mesmo no Excel conectado ao SQL) para criar um gráfico de "Veículos Pendentes de Espelhamento" e "Tempo Médio de Instalação".
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

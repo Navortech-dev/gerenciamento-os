@@ -1,0 +1,82 @@
+DOCUMENTACAO DE ARQUITETURA: ESPELHO DE DADOS EM TEMPO REAL
+SISTEMA: GERENCIAMENTO UNIVERSAL DE OSs (MOTOR FIELD CONTROL)
+ARQUIVO: 01_gerenciamento_oss_arquitetura_fluxo.txt
+OBJETIVO DO SISTEMA
+
+Criar um espelho digital identico e em tempo real de qualquer Ordem
+de Servico (OS). O sistema captura o ciclo de vida completo: desde o
+segundo em que uma PESSOA cria a OS no sistema, ate as edicoes,
+preenchimento de dados e a baixa final. A linha no banco de dados
+nasce com a OS e evolui com ela, servindo de base para relatorios
+gerenciais automaticos.
+
+AS FERRAMENTAS E SEUS PAPEIS
+
+-> ORIGEM: API DO FIELD CONTROL (WEBHOOKS)
+O Field Control atua como o gerador de eventos. Utilizamos a funcao
+de "Webhooks", que sao avisos disparados pelo servidor deles.
+
+O que faz: Sempre que uma PESSOA cria, edita ou finaliza uma OS no
+painel ou no app, a API envia um pacote de dados (JSON) na hora.
+
+-> PONTE: MAKE.COM (ORQUESTRADOR)
+O Make e o cerebro logico que une o Field Control ao nosso banco.
+
+O que faz: Ele "escuta" os avisos da API, limpa os dados inuteis e
+organiza a informacao. Ele garante que as regras de velocidade da
+API sejam respeitadas atraves de uma fila de processamento.
+
+-> DESTINO: SUPABASE (BANCO DE DADOS EM NUVEM)
+O Supabase e o nosso cofre de informacoes profissional (PostgreSQL).
+
+O que faz: Armazena o historico de cada OS. Se a OS ja existe e
+uma PESSOA muda algo, ele localiza a linha e atualiza apenas o detalhe
+alterado (Logica UPSERT).
+
+-> VISUALIZACAO: BI E RELATORIOS (DASHBOARDS)
+Ferramentas como Power BI ou Looker Studio conectadas ao banco.
+
+O que faz: Consome os dados do Supabase para criar graficos,
+indicadores de SLA e listas de pendencias de forma automatica.
+
+FLUXO ESTRUTURAL (VIDA DA OS)
+
+PASSO 1: O NASCIMENTO (Criacao)
+Uma PESSOA cria a OS no Field Control.
+-> A API dispara o evento -> O Make recebe -> O Supabase cria a
+linha inicial no banco de dados.
+
+PASSO 2: A EVOLUCAO (Edicao/Andamento)
+Qualquer PESSOA altera uma informacao ou status no sistema.
+-> A API dispara o evento -> O Make identifica a OS -> O Supabase
+atualiza a coluna correspondente na linha original.
+
+PASSO 3: O PREENCHIMENTO (Dados de Campo)
+Uma PESSOA preenche perguntas, respostas ou anexa fotos na OS.
+-> A API envia os dados -> O Make organiza -> O Supabase guarda
+os detalhes vinculados a mesma linha da OS.
+
+PASSO 4: FINALIZACAO (Baixa)
+Uma PESSOA finaliza a OS no sistema.
+-> A API envia o sinal de conclusao -> O Make registra a data e
+hora final -> O ciclo de edicao fecha no banco de dados.
+
+PASSO 5: INTELIGENCIA (BI e Dashboard)
+O software de BI le o banco de dados Supabase.
+-> O relatorio e atualizado sozinho -> A gerencia visualiza os
+indicadores de performance, atrasos e resultados em tempo real.
+
+VANTAGENS DESTA ESTRUTURA
+
+Modelo Agnostico: Funciona para qualquer cliente ou tipo de servico.
+
+Dados Vivos: O Dashboard nao depende de arquivos manuais; ele
+reflete o que a PESSOA acabou de fazer no sistema.
+
+Custo Zero Inicial: O projeto roda inteiramente dentro das
+cotas gratuitas das ferramentas (MVP).
+
+Decisao Baseada em Dados: A gerencia tem acesso a informacoes
+auditaveis e precisas para garantir o cumprimento de metas e SLAs.
+
+ASS: ANALISTA DE DADOS DAVI SCHOLZE - INFRAESTRUTURA DE DADOS

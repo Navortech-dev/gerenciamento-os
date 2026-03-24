@@ -1,0 +1,100 @@
+DOCUMENTACAO DE ARQUITETURA: TRATAMENTO DE DADOS E DICIONARIO
+SISTEMA: GERENCIAMENTO UNIVERSAL DE OSs (MOTOR FIELD CONTROL)
+ARQUIVO: 02_gerenciamento_oss_dicionario_e_tratamento.txt
+CONFIGURACAO DOS GATILHOS (WEBHOOKS)
+
+Para proteger o limite gratuito de operacoes do sistema e focar apenas
+no que e vital para o SLA, configuramos o Field Control para disparar
+alertas apenas nestes 4 cenarios exatos:
+
+Criacao de uma ordem de servico
+
+Atualizacao de uma ordem de servico
+
+Impedimento da realizacao de alguma atividade
+
+Atividade concluida com sucesso (Gera a Data de Finalizacao)
+
+Nota: O evento de "Formularios" foi descartado nesta fase, pois a
+operacao padronizou que as informacoes vitais (Placa, Gerenciadora,
+etc.) serao inseridas diretamente no campo "Descricao" da OS.
+
+ANALISE DO PACOTE DE DADOS (O JSON) E A ESTRATEGIA DA "MANCHETE"
+Durante os testes, identificamos que o Webhook padrao do Field Control
+envia apenas uma "Manchete" da acao. Ele entrega o ID da OS, a Descricao
+e a Data de Atualizacao, mas omite nomes reais (Cliente e Pessoa
+responsavel), enviando apenas codigos criptografados.
+
+Solucao Arquitetural adotada:
+O Webhook servira apenas como um "Alarme". Sempre que ele tocar, o
+nosso sistema (Make.com) usara uma Chave de Integracao (API Key) para
+ir ao Field Control e puxar o "Dossie Completo" daquela OS, garantindo
+100% de visibilidade das informacoes para os relatorios.
+
+A ESTEIRA DE PROCESSAMENTO (MAKE.COM)
+Para transformar o texto bruto da Descricao em colunas separadas para o
+Power BI, o fluxo no Make.com tera 4 etapas (Modulos):
+
+PASSO 1 (Recepcionista): Webhook recebe o alarme do Field Control.
+
+PASSO 2 (Investigador): Modulo HTTP usa a API Key para buscar todos os
+dados ocultos da OS (Status, Nomes, Datas).
+
+PASSO 3 (Analisador): Modulo "Text Parser" usa regras de texto (Regex)
+para ler a Descricao e fatiar as informacoes exatas (Placa, Login, Senha)
+que estao apos os "dois pontos".
+
+PASSO 4 (Arquivista): Modulo Supabase localiza a OS e guarda cada fatia
+na sua respectiva coluna (Logica de Upsert).
+
+DICIONARIO DE DADOS (ESTRUTURA DA TABELA NO SUPABASE)
+Com base na analise do JSON e nas necessidades de BI, a tabela principal
+contera 17 colunas divididas em 3 categorias.
+
+DECISAO TECNICA IMPORTANTE: A coluna "descricao_original" foi mantida
+como uma "Rede de Seguranca". Se uma PESSOA digitar a Placa fora do padrao
+e o robo (Text Parser) nao conseguir ler, o dado nao sera perdido. A gerencia
+podera ler o texto bruto e entender o contexto.
+
+CATEGORIA A: DADOS DO SISTEMA E IDENTIFICACAO
+
+id_os (Texto): Codigo longo e unico da API (Chave Primaria).
+
+numero_os (Texto): Numero curto e visivel no painel.
+
+status_atual (Texto): Aberta, Em Andamento, Concluida, Impedida.
+
+nome_cliente (Texto): Nome real da empresa/cliente.
+
+pessoa_responsavel (Texto): Nome de quem assumiu/executou a OS.
+
+descricao_original (Texto Longo): Texto bruto integral (Backup).
+
+CATEGORIA B: CONTROLE DE TEMPO (SLA)
+
+data_criacao (Data/Hora): Quando a OS nasceu no Field Control.
+
+data_atualizacao (Data/Hora): Ultima vez que alguem alterou algo.
+
+data_finalizacao (Data/Hora): Carimbo gerado pelo Make.com no exato
+segundo em que o Webhook de "Conclusao" e recebido.
+
+CATEGORIA C: DADOS EXTRAIDOS (O ESPELHAMENTO)
+
+esp_placa (Texto)
+
+esp_cooperado (Texto)
+
+esp_contato (Texto)
+
+esp_email (Texto)
+
+esp_login (Texto)
+
+esp_senha (Texto) -> Protegido no banco, restrito na visualizacao.
+
+esp_id_espelhamento (Texto)
+
+esp_satelital (Texto)
+
+ASS: ANALISTA DE DADOS DAVI SCHOLZE - INFRAESTRUTURA DE DADOS
