@@ -1,0 +1,80 @@
+DOCUMENTAÇÃO DE ENGENHARIA E BI: INTEGRAÇÃO AVANÇADA E VISUALIZAÇÃO
+SISTEMA: GERENCIAMENTO UNIVERSAL DE OSs (MOTOR FIELD CONTROL)
+ARQUIVO: 03_gerenciamento_oss_automacao_e_bi_completo.txt
+
+1. A ESTEIRA DE ENRIQUECIMENTO (WORKFLOW MAKE.COM)
+
+Para que o dashboard não exibisse apenas códigos, a esteira foi evoluída de um receptor simples para uma Cadeia de 6 Etapas Inteligentes, garantindo que cada linha no banco de dados seja rica em detalhes.
+
+Módulo 1: Webhook (Gatilho): Recebe o evento JSON do Field Control.
+
+Dados capturados: ID da OS, número da OS e a descrição bruta.
+
+Módulo 2: HTTP - Get OS Details: Consulta GET https://carchost.fieldcontrol.com.br/orders/{{id}}.
+
+Função: Extrai o customer.id e o responsável, que vêm ocultos no webhook inicial.
+
+Módulo 3: HTTP - Investigador de Clientes: Consulta GET https://carchost.fieldcontrol.com.br/customers/{{customer.id}}.
+
+Função: Cruza o ID técnico com o banco de clientes para extrair o Nome Fantasia/Razão Social real.
+
+Módulo 4: HTTP - Investigador de Atividades/Tasks: Consulta GET https://carchost.fieldcontrol.com.br/orders/{{id}}/tasks.
+
+Função: Localiza o status em tempo real (scheduled, done, canceled) e captura o exato segundo da finalização da tarefa.
+
+Módulo 5: Text Parser (Regex): Processa a description.
+
+Lógica: Aplica expressões regulares para fatiar o texto e isolar as variáveis Placa, Login, Senha e Satelital.
+
+Módulo 6: Supabase (Conexão via Upsert):
+
+Lógica: O sistema utiliza o id_os como chave primária. Se o ID já existir, o Make realiza um Update (atualiza status/placa); se não existir, realiza um Insert (cria nova linha).
+
+2. INFRAESTRUTURA DO BANCO DE DADOS (SUPABASE)
+
+O armazenamento foi configurado para alta performance e segurança:
+
+Protocolo: PostgreSQL 15+.
+
+Conectividade: Porta 5432 (Direta) ou 6543 (Pooling para alta demanda do BI).
+
+Segurança SSL: Ativação obrigatória de criptografia para tráfego de dados sensíveis (senhas e logins de espelhamento).
+
+Rede de Contingência: Manutenção da coluna descricao_original para auditoria e recuperação de dados em caso de erro de digitação do técnico.
+
+3. CAMADA DE BI: CONEXÃO E SEGURANÇA SSL (LOOKER STUDIO)
+
+O Google Looker Studio foi conectado ao Supabase enfrentando e superando o rigoroso protocolo de segurança SSL:
+
+Certificado de Servidor: Implementação do arquivo de autoridade certificadora prod-ca-2021.crt.
+
+Configuração de Túnel: O Looker Studio foi configurado para "Ativar SSL", utilizando o certificado carregado para validar a identidade do servidor Supabase, permitindo a liberação do botão de autenticação apenas via canal criptografado.
+
+4. INTELIGÊNCIA DE DADOS: CAMADA "DAX" (CAMPOS CALCULADOS)
+
+Para eliminar a complexidade técnica para o usuário final (a gerência), foi criada uma camada de tradução lógica (CASE Function):
+
+SQL
+/* Fórmula implementada no campo Status_Dashboard */
+CASE 
+    WHEN status_atual = "scheduled" THEN "📅 Agendado"
+    WHEN status_atual = "in-progress" THEN "⚒️ Em Atendimento"
+    WHEN status_atual = "done" THEN "✅ Concluído"
+    WHEN status_atual = "canceled" THEN "❌ Cancelado"
+    ELSE "❓ Outro"
+END
+5. ARQUITETURA DO DASHBOARD FINAL
+
+O painel foi estruturado para ser operado em três níveis de controle:
+
+Cabeçalho de Filtros: Controles de "Período (Calendário)", "Cliente" e "Status Amigável".
+
+Cartões de KPI: Exibição instantânea do total de OSs abertas, concluídas e taxa de cancelamento.
+
+Grade de Operação: Tabela detalhada formatada com listras para leitura rápida, contendo: Número OS | Cliente | Status (com emoji) | Placa | Login | Data de Atualização.
+
+6. CONCLUSÃO TÉCNICA
+
+O ecossistema está agora 100% autônomo. O fluxo de dados respeita a integridade da API do Field Control, a inteligência de fatiamento do Make.com, a segurança robusta do Supabase e a visualização estratégica do Looker Studio. O sistema está pronto para escala, suportando múltiplas atualizações simultâneas sem perda de informação.
+
+ASS: ANALISTA DE DADOS DAVI SCHOLZE - INFRAESTRUTURA DE DADOS
